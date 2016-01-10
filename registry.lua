@@ -35,10 +35,9 @@ function Registry:findUsers(baseClassName)
 	for name, class in pairs(self.db) do
 		if class ~= baseClass then
 			for key, value in pairs(ownKeys) do
-				print(key)
 				if class.changelog[key] then
 					if type(value) == 'table' then
-						users[key] = self:findUsers(value.name)
+						users[key] = self:findUsers(baseClassName .. ' ' .. key)
 					else
 						local source = class:getKeySource(key)
 						if source == baseClass then

@@ -65,11 +65,11 @@ local Cannon = registry:get('Cannon')
 --print(HECannon:prettyPrint())
 --print('users of values from class "HE":')
 --print(inspect(Weapon:getOwnKeys()))
---local users = registry:findUsers('Weapon')
---print(inspect(users))
+local users = registry:findUsers('Weapon')
+print(inspect(users))
 --print(inspect(Cannon:getOwnKeys()))
 --
-print(inspect(HECannon:getKeyTrace()))
+--print(inspect(HECannon:getKeyTrace()))
 
 --local HowitzerHE = class('HowitzerHE'):Base('HE'):New{
 
