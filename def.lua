@@ -3,33 +3,30 @@ local inspect = require 'inspect'
 
 local Def = class('Def')
 
-local function merge (child, parent)
-    for k,v in pairs(parent) do
-        if type(k) == "string" and type(v) ~= "function" then
-            k = k:lower()
-        end
-        if type(v) == "table" then
-            if child[k] == nil then child[k] = {} end
-            merge(child[k], v)
-        else
-			if child[k] == nil then child[k] = v end
-        end
-    end
+function Def:initialize(registry, name)
+	self.registry = function ()
+		return registry
+	end
+	self.name = name
+	self.changelog = {}
 end
 
 function Def:prettyPrint(indentLevel)
 	indentLevel = indentLevel or 0
 	local name = self.name
-	local values = self:getTraced()
+	local values = self:getKeyTrace()
 	local indent = string.rep("  ", indentLevel)
-	local string = "" --indent .. "'" .. self.name .. "' = { \n"
+	local string = ""
+	if indentLevel == 0 then
+		string = string .. indent .. "'" .. self.name .. "' = { \n"
+	end
 	local ordered = {}
 
 	for key, trace in pairs(values) do
 		table.insert(ordered, { key, trace })
 	end
 
-	table.sort(ordered, function (a, b) 
+	table.sort(ordered, function (a, b)
 		return a[1] < b[1]
 	end)
 
@@ -39,12 +36,12 @@ function Def:prettyPrint(indentLevel)
 		local source = trace.source
 		local overwrites = trace.overwrites
 		local overwriteDesc = ""
+
 		for i, overwriter in ipairs(overwrites) do
-			overwriteDesc = overwriteDesc .. overwriter
+			overwriteDesc = overwriteDesc .. overwriter.name
 			if i < #overwrites then
 				overwriteDesc = overwriteDesc .. " -> "
 			end
-
 		end
 		if type(value) == 'table' then
 			local newIndent = string.rep("  ", indentLevel + 1)
@@ -56,66 +53,92 @@ function Def:prettyPrint(indentLevel)
 	return string .. indent .. "}\n"
 end
 
-function Def:getOverwrites(key)
-	local trace = self.trace[key]
+-- this could be performed during :add, but it seemed best to keep it off the
+-- direct path (since :add gets called quite a lot, and on every game load)
+function Def:_getOverwrites(key)
+	local log = self.changelog[key]
 	local overwrites = {}
-	for i, source in ipairs(trace.source) do
-		if source == self then
-			table.insert(overwrites, 'self')
-		else
-			table.insert(overwrites, source.name)
+	for i, source in ipairs(log.source) do
+		local originalSource = source:getKeySource(key)
+		-- collapse diamond to single source, e.g. when A -> B, C -> D.
+		-- D should show the value as coming from A just once, rather than
+		-- from A followed by A.
+		local prev = overwrites[#overwrites]
+		if originalSource ~= prev then
+			table.insert(overwrites, originalSource)
 		end
 	end
 	return overwrites
 end
 
-function Def:getSource(key)
-	local trace = self.trace[key]
-	local last = trace.source[#trace.source]
+function Def:getKeySource(key)
+	local log = self.changelog[key]
+	local last = log.source[#log.source]
 	if last == self then
 		return self
 	else
-		return last:getSource(key)
+		return last:getKeySource(key)
 	end
 end
 
-function Def:getTraced()
+--TODO: how to handle this with subtables?
+--I guess find the subtable keys sourced from name .. subtable name
+--ditto getKeyTrace
+function Def:getOwnKeys()
+	local ownKeys = {}
+	local trace = self:getKeyTrace()
+	for key, trace in pairs(trace) do
+		if trace.source == self then
+			ownKeys[key] = trace.value
+		end
+
+		-- TODO: awful hack. gereralize the tree walking, because implementing
+		-- it distinctly for each method makes it impossible for them to
+		-- interoperate sanely
+		if trace.value == nil then
+			local subtable = self:registry():get(self.name .. ' ' .. key)
+			ownKeys[key] = subtable:getOwnKeys()
+		end
+	end
+	return ownKeys
+end
+
+function Def:getKeyTrace()
 	local traced = {}
-	for key, trace in pairs(self.trace) do
-		traced[key] = { value = trace.value, source = self:getSource(key).name, overwrites = self:getOverwrites(key) }
+	for key, log in pairs(self.changelog) do
+		if type(log.value) == 'table' then
+			traced[key] = log.value:getKeyTrace()
+		else
+			traced[key] = {
+				value = log.value,
+				source = self:getKeySource(key),
+				overwrites = self:_getOverwrites(key)
+			}
+		end
 	end
 	return traced
 end
 
-function Def:initialize(registry, name)
-	self.registry = registry
-	self.name = name
-	self.composed = {}
-	self.trace = {}
-end
-
 function Def:Render()
-	for key, trace in pairs(self.trace) do
-
+	local result = {}
+	for key, log in pairs(self.changelog) do
+		local value = log.value
+		if type(value) == 'table' then
+			result[key] = value:Render()
+		else
+			result[key] = value
+		end
 	end
+	return result
 end
 
 function Def:add(key, value, source)
 	if type(value) == 'table' then
 		local subname = self.name .. ' ' .. key
-		if self.trace[key] == nil then
-			self.trace[key] = {
-				value = self.registry:register(subname),
-				source = { source }
-			}
-			print("made a new subtable class for ", key, subname)
-			--print(self.subtableClasses[key])
-		end
 
-		local subtable = self.trace[key].value
-		-- TODO: should this be Attrs? that is, should the subtable know that
-		-- it comes from? where do subtables come from?
-		-- overwrite with the fleshed object attrs
+		local existing = (self.changelog[key] or {}).value
+		local subtable = existing or self.registry():register(subname)
+
 		if self == source then
 			value = subtable:Attrs(value)
 		else
@@ -123,67 +146,39 @@ function Def:add(key, value, source)
 		end
 	end
 
-	if self.trace[key] == nil then
-		self.trace[key] = {
+	if self.changelog[key] == nil then
+		self.changelog[key] = {
 			value = value,
 			source = { source },
 		}
 	else
 		-- WARNING, overwriting!
-		local existingSource = self.trace[key].source[1]
-		self.trace[key].value = value
-		table.insert(self.trace[key].source, source)
+		local existingSource = self.changelog[key].source[1]
+		self.changelog[key].value = value
+		table.insert(self.changelog[key].source, source)
 	end
 end
 
 -- deliberately only single inheritance. fail if there's been any mixing.
 function Def:Extends (parentName)
-	print(self.name .. " is extending: " .. parentName)
-	--[[
-	if #self.mixins > 0 then
-		print("error! a class cannot inherit if it has mixed in other classes")
-		return nil
-	end
-	]]--
-
-	local parent = self.registry:get(parentName)
+	local parent = self.registry():get(parentName)
 	if not parent then
 		print("error! " .. parentName .. " has not yet been defined!")
 		return
 	end
 
-	for key, trace in pairs(parent.trace) do
-		if trace.value then
-			self:add(key, trace.value, parent)
-		end
+	for key, log in pairs(parent.changelog) do
+		self:add(key, log.value, parent)
 	end
-
-	--self.parent = parent
 
 	return self
 end
 
 function Def:Attrs (attrs)
-	--print(self.name .. " is implementing stuff:\n")
-	--printTable(attrs)
 	for key, value in pairs(attrs) do
-		--print("\t" .. key .. ": ", value, "\n")
 		self:add(key, value, self)
 	end
 	return self
-end
-
-function Def:printTrace()
-	local ordered = {}
-	for k,v in pairs (self.trace) do table.insert(ordered, { k, v }) end
-	table.sort(ordered, function (a, b) 
-		return a[1] < b[1]
-	end)
-
-	for i, tuple in ipairs(ordered) do
-		local key, traceData = tuple[1], tuple[2]
-		print(key .. " is ", traceData.value, " from " .. traceData.source[1].name)
-	end
 end
 
 return Def

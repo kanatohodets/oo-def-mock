@@ -1,17 +1,18 @@
 local class = require 'middleclass'
 local inspect = require 'inspect'
 
-local Def = require 'def'
 local Registry = require 'registry'
-
 local registry = Registry:new()
 
-function Weapon (name)
+--TODO abstract classes
+--TODO check if a class is used at all by impls
+--TODO: get rid of def references to registry to kill cyclic refs
+
+function Def (name)
 	return registry:register(name)
 end
 
-print(registry.db)
-Weapon('Weapon'):Extends('Def'):Attrs{
+Def('Weapon'):Extends('Def'):Attrs{
 	color = "red",
 	customparams = {
 		onlytargetcategory = "FOO BAR BAZ"
@@ -19,17 +20,18 @@ Weapon('Weapon'):Extends('Def'):Attrs{
 	damage = {
 		properties = {
 			intimidate = "very sparkle"
-		}
+		},
+		blorg = "FTW"
 	}
 }
 
-Weapon('HE'):Extends('Weapon'):Attrs{
+Def('HE'):Extends('Weapon'):Attrs{
 	name = 'HE',
 	explosive = "yes",
 	areaofeffect = 40
 }
 
-Weapon('Cannon'):Extends('Weapon'):Attrs{
+Def('Cannon'):Extends('Weapon'):Attrs{
 	name = "Cannon",
 	range = 400,
 	damage = {
@@ -42,7 +44,7 @@ Weapon('Cannon'):Extends('Weapon'):Attrs{
 	edgeEffectiveness = 0.2
 }
 
-Weapon('HE Cannon'):Extends('HE'):Extends('Cannon'):Attrs{
+Def('HE Cannon'):Extends('HE'):Extends('Cannon'):Attrs{
 	super_effective = true,
 	damage = {
 		grass = 999999,
@@ -53,8 +55,21 @@ Weapon('HE Cannon'):Extends('HE'):Extends('Cannon'):Attrs{
 }
 
 print("--------------------")
-print("'HE Cannon' = {")
-print(registry:get('HE Cannon'):prettyPrint())
+--print("'HE Cannon' = {")
+local Weapon = registry:get('Weapon')
+local HECannon = registry:get('HE Cannon')
+local HE = registry:get('HE')
+local Cannon = registry:get('Cannon')
+--print(inspect(HE))
+--print(inspect(HECannon:Render()))
+--print(HECannon:prettyPrint())
+--print('users of values from class "HE":')
+--print(inspect(Weapon:getOwnKeys()))
+--local users = registry:findUsers('Weapon')
+--print(inspect(users))
+--print(inspect(Cannon:getOwnKeys()))
+--
+print(inspect(HECannon:getKeyTrace()))
 
 --local HowitzerHE = class('HowitzerHE'):Base('HE'):New{
 
