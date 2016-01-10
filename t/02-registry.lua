@@ -1,6 +1,6 @@
 local Registry = require 'registry'
 describe("registry object", function ()
-	it("registers new def", function ()
+	it("registers and gets new def", function ()
 		local r = Registry:new()
 		r:register('Simple Def')
 		local TestDef = r:get('Simple Def')

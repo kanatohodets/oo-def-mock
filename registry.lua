@@ -42,7 +42,7 @@ function Registry:findUsers(baseClassName)
 						local source = class:getKeySource(key)
 						if source == baseClass then
 							if not users[key] then
-								users[key] = { 
+								users[key] = {
 									value = ownKeys[key],
 									consumers = { class.name }
 								}

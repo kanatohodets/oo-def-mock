@@ -22,8 +22,8 @@ function Def:prettyPrint(indentLevel)
 	end
 	local ordered = {}
 
-	for key, trace in pairs(values) do
-		table.insert(ordered, { key, trace })
+	for key, traceOrSubtable in pairs(values) do
+		table.insert(ordered, { key, traceOrSubtable })
 	end
 
 	table.sort(ordered, function (a, b)
@@ -33,16 +33,21 @@ function Def:prettyPrint(indentLevel)
 	for i, ordered in ipairs(ordered) do
 		local key, trace = ordered[1], ordered[2]
 		local value = trace.value
+		if value == nil then value = trace end
+
 		local source = trace.source
 		local overwrites = trace.overwrites
 		local overwriteDesc = ""
 
-		for i, overwriter in ipairs(overwrites) do
-			overwriteDesc = overwriteDesc .. overwriter.name
-			if i < #overwrites then
-				overwriteDesc = overwriteDesc .. " -> "
+		if overwrites then
+			for i, overwriter in ipairs(overwrites) do
+				overwriteDesc = overwriteDesc .. overwriter.name
+				if i < #overwrites then
+					overwriteDesc = overwriteDesc .. " -> "
+				end
 			end
 		end
+
 		if type(value) == 'table' then
 			local newIndent = string.rep("  ", indentLevel + 1)
 			string = string .. newIndent .. "'" .. key .. "' = {\n" .. value:prettyPrint(indentLevel + 1)
@@ -73,6 +78,7 @@ end
 
 function Def:getKeySource(key)
 	local log = self.changelog[key]
+	if log == nil then return nil end
 	local last = log.source[#log.source]
 	if last == self then
 		return self
@@ -107,7 +113,7 @@ function Def:getKeyTrace()
 	local traced = {}
 	for key, log in pairs(self.changelog) do
 		if type(log.value) == 'table' then
-			traced[key] = log.value:getKeyTrace()
+			traced[key] = log.value--:getKeyTrace()
 		else
 			traced[key] = {
 				value = log.value,
