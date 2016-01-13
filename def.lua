@@ -1,5 +1,4 @@
 local class = require 'middleclass'
-local inspect = require 'inspect'
 
 local Def = class('Def')
 
@@ -9,48 +8,6 @@ function Def:initialize(registry, name)
 	end
 	self.name = name
 	self.changelog = {}
-end
-
-function Def:prettyPrint(indentLevel)
-	indentLevel = indentLevel or 0
-	local name = self.name
-	local indent = string.rep("  ", indentLevel)
-	local string = ""
-
-	if indentLevel == 0 then
-		string = string .. indent .. "'" .. self.name .. "' = { \n"
-	end
-
-	local ordered = {}
-	for key, log in pairs(self.changelog) do
-		table.insert(ordered, { key, log })
-	end
-
-	table.sort(ordered, function (a, b)
-		return a[1] < b[1]
-	end)
-
-	for i, ordered in ipairs(ordered) do
-		local key, log = ordered[1], ordered[2]
-		local value = log.value
-
-		if type(value) == 'table' then
-			local newIndent = string.rep("  ", indentLevel + 1)
-			string = string .. newIndent .. "'" .. key .. "' = {\n" .. value:prettyPrint(indentLevel + 1)
-		else
-			local overwrites = self:getOverwrites(key)
-			local overwriteDesc = ""
-			for i, overwriter in ipairs(overwrites) do
-				overwriteDesc = overwriteDesc .. overwriter.name
-				if i < #overwrites then
-					overwriteDesc = overwriteDesc .. " -> "
-				end
-			end
-			string = string .. indent .. "  " .. key .. " = '" .. tostring(value) .. "' -- " .. overwriteDesc .. " \n"
-		end
-	end
-
-	return string .. indent .. "}\n"
 end
 
 -- this could be performed during :add, but it seemed best to keep it off the
