@@ -14,16 +14,16 @@ end
 function Def:prettyPrint(indentLevel)
 	indentLevel = indentLevel or 0
 	local name = self.name
-	local values = self:getKeyTrace()
 	local indent = string.rep("  ", indentLevel)
 	local string = ""
+
 	if indentLevel == 0 then
 		string = string .. indent .. "'" .. self.name .. "' = { \n"
 	end
-	local ordered = {}
 
-	for key, traceOrSubtable in pairs(values) do
-		table.insert(ordered, { key, traceOrSubtable })
+	local ordered = {}
+	for key, log in pairs(self.changelog) do
+		table.insert(ordered, { key, log })
 	end
 
 	table.sort(ordered, function (a, b)
@@ -31,36 +31,31 @@ function Def:prettyPrint(indentLevel)
 	end)
 
 	for i, ordered in ipairs(ordered) do
-		local key, trace = ordered[1], ordered[2]
-		local value = trace.value
-		if value == nil then value = trace end
+		local key, log = ordered[1], ordered[2]
+		local value = log.value
 
-		local source = trace.source
-		local overwrites = trace.overwrites
-		local overwriteDesc = ""
-
-		if overwrites then
+		if type(value) == 'table' then
+			local newIndent = string.rep("  ", indentLevel + 1)
+			string = string .. newIndent .. "'" .. key .. "' = {\n" .. value:prettyPrint(indentLevel + 1)
+		else
+			local overwrites = self:getOverwrites(key)
+			local overwriteDesc = ""
 			for i, overwriter in ipairs(overwrites) do
 				overwriteDesc = overwriteDesc .. overwriter.name
 				if i < #overwrites then
 					overwriteDesc = overwriteDesc .. " -> "
 				end
 			end
-		end
-
-		if type(value) == 'table' then
-			local newIndent = string.rep("  ", indentLevel + 1)
-			string = string .. newIndent .. "'" .. key .. "' = {\n" .. value:prettyPrint(indentLevel + 1)
-		else
 			string = string .. indent .. "  " .. key .. " = '" .. tostring(value) .. "' -- " .. overwriteDesc .. " \n"
 		end
 	end
+
 	return string .. indent .. "}\n"
 end
 
 -- this could be performed during :add, but it seemed best to keep it off the
 -- direct path (since :add gets called quite a lot, and on every game load)
-function Def:_getOverwrites(key)
+function Def:getOverwrites(key)
 	local log = self.changelog[key]
 	local overwrites = {}
 	for i, source in ipairs(log.source) do
@@ -87,42 +82,22 @@ function Def:getKeySource(key)
 	end
 end
 
---TODO: how to handle this with subtables?
---I guess find the subtable keys sourced from name .. subtable name
---ditto getKeyTrace
 function Def:getOwnKeys()
 	local ownKeys = {}
-	local trace = self:getKeyTrace()
-	for key, trace in pairs(trace) do
-		if trace.source == self then
-			ownKeys[key] = trace.value
-		end
+	for key, log in pairs(self.changelog) do
+		local value = log.value
+		local source = log.source[#log.source]
 
-		-- TODO: awful hack. gereralize the tree walking, because implementing
-		-- it distinctly for each method makes it impossible for them to
-		-- interoperate sanely
-		if trace.value == nil then
+		if type(value) == 'table' then
 			local subtable = self:registry():get(self.name .. ' ' .. key)
 			ownKeys[key] = subtable:getOwnKeys()
+		else
+			if source == self then
+				ownKeys[key] = value
+			end
 		end
 	end
 	return ownKeys
-end
-
-function Def:getKeyTrace()
-	local traced = {}
-	for key, log in pairs(self.changelog) do
-		if type(log.value) == 'table' then
-			traced[key] = log.value--:getKeyTrace()
-		else
-			traced[key] = {
-				value = log.value,
-				source = self:getKeySource(key),
-				overwrites = self:_getOverwrites(key)
-			}
-		end
-	end
-	return traced
 end
 
 function Def:Render()

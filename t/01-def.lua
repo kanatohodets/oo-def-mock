@@ -254,4 +254,90 @@ describe("def object", function ()
 			assert.are.equal(baseDef, source)
 		end)
 	end)
+	describe("getOwnKeys", function ()
+		it("correctly labels simple keys on a simple class", function ()
+			local r = Registry:new()
+			r:register('Simple Def'):Attrs{
+				a = 1
+			}
+			local ownKeys = r:get('Simple Def'):getOwnKeys()
+			assert.are.same(ownKeys, {
+				a = 1
+			})
+		end)
+
+		it("correctly skips simple inherited keys", function ()
+			local r = Registry:new()
+			r:register('Base Def'):Attrs{
+				a = 1
+			}
+
+			r:register('Child Def'):Extends('Base Def')
+
+			local ownKeys = r:get('Child Def'):getOwnKeys()
+			assert.are.same(ownKeys, {})
+		end)
+
+		it("correctly labels nested keys on a simple class", function ()
+			local r = Registry:new()
+			r:register('Simple Def'):Attrs{
+				a = {
+					b = {
+						c = 3
+					}
+				}
+			}
+			local ownKeys = r:get('Simple Def'):getOwnKeys()
+			assert.are.same(ownKeys, {
+				a = {
+					b = {
+						c = 3
+					}
+				}
+			})
+		end)
+
+		it("correctly skips inherited nested keys", function ()
+			local r = Registry:new()
+			r:register('Base Def'):Attrs{
+				a = {
+					b = {
+						c = 3
+					}
+				}
+			}
+			r:register('Child Def'):Extends('Base Def')
+			local ownKeys = r:get('Child Def'):getOwnKeys()
+			--TODO: is this sane?
+			assert.are.same(ownKeys, {
+				a = { b = {} }
+			})
+		end)
+
+		it("correctly merges inherited nested keys", function ()
+			local r = Registry:new()
+			r:register('Base Def'):Attrs{
+				a = {
+					b = {
+						c = 3
+					}
+				}
+			}
+			r:register('Child Def'):Extends('Base Def'):Attrs{
+				a = {
+					b = {
+						foo = 'bar'
+					}
+				}
+			}
+			local ownKeys = r:get('Child Def'):getOwnKeys()
+			assert.are.same(ownKeys, {
+				a = {
+					b = {
+						foo = "bar"
+					}
+				}
+			})
+		end)
+	end)
 end)

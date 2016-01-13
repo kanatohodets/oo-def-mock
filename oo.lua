@@ -38,7 +38,8 @@ Def('Cannon'):Extends('Weapon'):Attrs{
 		default = "lots",
 		properties = {
 			paralyze = 9999,
-		}
+		},
+		blorg = "LOSE"
 	},
 
 	edgeEffectiveness = 0.2
@@ -69,7 +70,7 @@ local users = registry:findUsers('Weapon')
 print(inspect(users))
 --print(inspect(Cannon:getOwnKeys()))
 --
---print(inspect(HECannon:getKeyTrace()))
+--print(HECannon:prettyPrint())
 
 --local HowitzerHE = class('HowitzerHE'):Base('HE'):New{
 
