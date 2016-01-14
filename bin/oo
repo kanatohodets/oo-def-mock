@@ -1,0 +1,50 @@
+#!/usr/bin/env lua
+
+--local registry = require 'registry'
+local Parser = require 'argparse'
+local inspect = require 'inspect'
+local oo = require 'lib/oo'
+
+local cli = Parser "oo"
+cli:description('handy tool for working with OO spring defs')
+
+cli
+	:command('render', 'render a class into a its full form')
+	:action(function(options)
+		print("OMG RENDER")
+	end)
+
+cli
+	:command('users', 'show users of a given class/tag')
+	:action(function(options) 
+		print("OMG USERS")
+	end)
+
+cli
+	:command('trace', "show original source of class tags")
+	:action(function(options)
+		print("OMG TRACE")
+	end)
+
+cli
+	:command('crawl', "show original source of class tags")
+	:argument("dir")
+
+local args, err = cli:parse()
+local action = {
+	crawl = function (args) 
+		oo.crawlDir(args.dir)
+		print(inspect(oo.render('HE')))
+	end,
+	trace = function (args)
+
+	end,
+}
+
+for key, value in pairs(args) do
+	if action[key] then
+		args[key] = nil
+		action[key](args)
+	end
+end
+
