@@ -119,4 +119,51 @@ describe("registry object", function ()
 		})
 		assert.are.equal(users.foo.bar.baz.blorg.value, 'a thing')
 	end)
+
+	it("does not include empty subtables", function ()
+		local r = Registry:new()
+		r:register('Base'):Attrs{
+			foo = {
+				bar = {
+					baz = {
+						blorg = 'a thing'
+					}
+				}
+			},
+			what = {
+				dance = "dance revolution"
+			}
+		}
+
+		local users = r:findUsers('Base')
+		assert.are.same(users, {})
+	end)
+
+	it("does not allow duplicate implementations", function ()
+		local r = Registry:new()
+		r:register('Foo')
+		assert.has_error(function() r:register('Foo') end, "Foo is already a registered implementation!")
+	end)
+
+	it("does not allow duplicate abstract classes", function ()
+		local r = Registry:new()
+		r:registerAbstract('Foo')
+		assert.has_error(function() r:registerAbstract('Foo') end, "Foo is already a registered abstract class!")
+	end)
+
+	it("does not allow any duplicates", function ()
+		local r = Registry:new()
+		r:registerAbstract('Foo')
+		assert.has_error(function() r:register('Foo') end, "Foo is already a registered abstract class!")
+	end)
+
+	it("knows whether a class is abstract or implementation", function ()
+		local r = Registry:new()
+		r:registerAbstract('Foo')
+		r:register('Bar')
+		assert.equals(r:type('Bar'), 'implementation')
+		assert.equals(r:type('Foo'), 'abstract')
+		assert.equals(r:type('fake'), 'unregistered')
+	end)
+
 end)

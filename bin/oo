@@ -20,6 +20,8 @@ users:argument("class")
 local trace = cli:command('trace', 'show source for each tag of a class')
 trace:argument("class")
 
+local unused = cli:command('unused', 'find abstract classes with no users')
+
 local function output(table, format)
 	if format == 'lua' then
 		print(inspect(table))
@@ -40,7 +42,10 @@ local action = {
 		output(oo.render(args.class), args.format)
 	end,
 	users = function (args)
-		output(oo.registry:findUsers(args.class), args.format)
+		output(oo.users(args.class), args.format)
+	end,
+	unused = function (args)
+		output(oo.unused(), args.format)
 	end
 }
 

@@ -1,28 +1,55 @@
 local class = require 'middleclass'
-local inspect = require 'inspect'
 
 local Registry = class('Registry')
 local Def = require 'def'
 
 function Registry:initialize()
 	self.db = {
-		Def = Def:new(self, 'Generic', 'Def')
+		all = {},
+		abstract = {},
+		impls = {}
 	}
 end
 
-function Registry:register(name)
-	if self.db[name] then
-		print("error! " .. name .. " is already a registered class: " .. inspect(self.db[name]) .. "!\n")
+function Registry:_newEntry(name, abstract)
+	local existingImpl = self.db.impls[name]
+	local existingAbstract = self.db.abstract[name]
+
+	if existingImpl then
+		error(name .. " is already a registered implementation!")
 		return nil
-	else
-		local newClass = Def:new(self, name)
-		self.db[name] = newClass
-		return newClass
+	elseif existingAbstract then
+		error(name .. " is already a registered abstract class!")
+		return nil
 	end
+
+	local newClass = Def:new(self, name)
+	if abstract then
+		self.db.abstract[name] = 1
+	else
+		self.db.impls[name] = 1
+	end
+
+	self.db.all[name] = newClass
+	return newClass
+end
+
+function Registry:register(name)
+	return self:_newEntry(name)
+end
+
+function Registry:registerAbstract(name)
+	return self:_newEntry(name, true)
 end
 
 function Registry:get(name)
-	return self.db[name]
+	return self.db.all[name]
+end
+
+function Registry:type(name)
+	if self.db.abstract[name] then return 'abstract' end
+	if self.db.impls[name] then return 'implementation' end
+	return 'unregistered'
 end
 
 function Registry:findUsers(baseClassName)
@@ -32,12 +59,17 @@ function Registry:findUsers(baseClassName)
 	local ownKeys = baseClass:getOwnKeys()
 	-- key = name of key, value = array of classes that source the value from this base class
 	local users = {}
-	for name, class in pairs(self.db) do
+	for name, class in pairs(self.db.all) do
 		if class ~= baseClass then
 			for key, value in pairs(ownKeys) do
 				if class.changelog[key] then
 					if type(value) == 'table' then
-						users[key] = self:findUsers(baseClassName .. ' ' .. key)
+						local subUsers = self:findUsers(baseClassName .. ' ' .. key)
+						local count = 0
+						for _ in pairs(subUsers) do count = count + 1 end
+						if count > 0 then
+							users[key] = subUsers
+						end
 					else
 						local source = class:getKeySource(key)
 						if source == baseClass then
@@ -56,6 +88,19 @@ function Registry:findUsers(baseClassName)
 		end
 	end
 	return users
+end
+
+function Registry:detectUnusedAbstractClasses()
+	local unused = {}
+	for className in pairs(self.db.abstract) do
+		local users = self:findUsers(className)
+		local tagsInUse = 0
+		for _ in pairs(users) do tagsInUse = tagsInUse + 1 end
+		if tagsInUse == 0 then
+			table.insert(unused, className)
+		end
+	end
+	return unused
 end
 
 return Registry

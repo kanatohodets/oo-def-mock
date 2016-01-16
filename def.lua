@@ -101,7 +101,7 @@ end
 function Def:Extends (parentName)
 	local parent = self.registry():get(parentName)
 	if not parent then
-		print("error! " .. parentName .. " has not yet been defined!")
+		error(parentName .. " cannot be used as a base class, because it has not yet been defined!")
 		return
 	end
 

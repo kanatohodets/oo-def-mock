@@ -1,4 +1,4 @@
-Def('Weapon'):Extends('Def'):Attrs{
+AbstractDef('Weapon'):Attrs{
 	color = "red",
 	customparams = {
 		onlytargetcategory = "FOO BAR BAZ"
@@ -10,4 +10,3 @@ Def('Weapon'):Extends('Def'):Attrs{
 		blorg = "FTW"
 	}
 }
-

@@ -39,12 +39,12 @@ end
 local Registry = require 'registry'
 local registry = Registry:new()
 
---TODO abstract classes
---TODO check if a class is used at all by impls
---TODO: get rid of def references to registry to kill cyclic refs
-
 function Def (name)
 	return registry:register(name)
+end
+
+function AbstractDef (name)
+	return registry:registerAbstract(name)
 end
 
 --hack
@@ -59,8 +59,8 @@ local function crawlDir(dir)
 	end
 end
 
-local function users(def, key)
-
+local function users(defName)
+	return registry:findUsers(defName)
 end
 
 local function traceClass(defName)
@@ -70,10 +70,15 @@ local function traceClass(defName)
 	return trace(def)
 end
 
+local function unused()
+	return registry:detectUnusedAbstractClasses()
+end
+
 oo.users = users
 oo.trace = traceClass
 oo.crawlDir = crawlDir
 oo.registry = registry
+oo.unused = unused
 oo.render = function (name) 
 	local def = registry:get(name)
 	if def then
