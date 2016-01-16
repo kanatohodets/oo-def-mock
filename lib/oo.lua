@@ -1,15 +1,9 @@
 local oo = {}
 local lfs = require 'lfs'
 
-local function prettyPrint (def, indentLevel)
-    indentLevel = indentLevel or 0
+local function trace (def)
     local name = def.name
-    local indent = string.rep("  ", indentLevel)
-    local string = ""
-
-    if indentLevel == 0 then
-        string = string .. indent .. "'" .. def.name .. "' = { \n"
-    end
+    local res = {}
 
     local ordered = {}
     for key, log in pairs(def.changelog) do
@@ -25,22 +19,21 @@ local function prettyPrint (def, indentLevel)
         local value = log.value
 
         if type(value) == 'table' then
-            local newIndent = string.rep("  ", indentLevel + 1)
-            string = string .. newIndent .. "'" .. key .. "' = {\n" .. prettyPrint(value, indentLevel + 1)
+            res[key] = trace(value)
         else
             local overwrites = def:getOverwrites(key)
-            local overwriteDesc = ""
-            for i, overwriter in ipairs(overwrites) do
-                overwriteDesc = overwriteDesc .. overwriter.name
-                if i < #overwrites then
-                    overwriteDesc = overwriteDesc .. " -> "
-                end
-            end
-            string = string .. indent .. "  " .. key .. " = '" .. tostring(value) .. "' -- " .. overwriteDesc .. " \n"
+			local overwriteNames = {}
+			for i, overwriter in ipairs(overwrites) do
+				table.insert(overwriteNames, overwriter.name)
+			end
+			res[key] = {
+				value = value,
+				source = overwriteNames
+			}
         end
     end
 
-    return string .. indent .. "}\n"
+    return res
 end
 
 local Registry = require 'registry'
@@ -54,6 +47,7 @@ function Def (name)
 	return registry:register(name)
 end
 
+--hack
 dofile('defs/Base.lua')
 local function crawlDir(dir)
 	for filename in lfs.dir(dir) do
@@ -69,14 +63,17 @@ local function users(def, key)
 
 end
 
-local function trace(def)
+local function traceClass(defName)
+	local def = registry:get(defName)
+	if def == nil then return nil end
 
+	return trace(def)
 end
 
-oo.prettyPrint = prettyPrint
 oo.users = users
-oo.trace = trace
+oo.trace = traceClass
 oo.crawlDir = crawlDir
+oo.registry = registry
 oo.render = function (name) 
 	local def = registry:get(name)
 	if def then
