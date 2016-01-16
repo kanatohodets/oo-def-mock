@@ -57,6 +57,15 @@ function Def:getOwnKeys()
 	return ownKeys
 end
 
+function Def:get(key)
+	local log = self.changelog[key]
+	if log then
+		return log.value
+	else
+		error(self.name .. ' does not have key ' .. key)
+	end
+end
+
 function Def:Render()
 	local result = {}
 	for key, log in pairs(self.changelog) do

@@ -53,6 +53,17 @@ describe("def object", function ()
 		end)
 	end)
 
+	describe('Get', function ()
+		it("gets the value of a key", function ()
+			local r = Registry:new()
+			r:register('Self Def'):Attrs{ foo = "bar" }
+
+			local testDef = r:get('Self Def')
+			local foo = testDef:get('foo')
+			assert.are.same(foo, "bar")
+		end)
+	end)
+
 	describe('Extends', function ()
 		it("inherits simple properties", function ()
 			local r = Registry:new()

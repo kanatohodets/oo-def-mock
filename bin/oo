@@ -15,10 +15,11 @@ local render = cli:command('render', 'render a class into a its full form')
 render:argument("class")
 
 local users = cli:command('users', 'show users of a given class/tag')
-users:argument("class")
+users:argument("class", "class to trace"):args(1)
+users:argument("key"):args('?')
 
 local trace = cli:command('trace', 'show source for each tag of a class')
-trace:argument("class")
+trace:argument("class", "class to trace"):args(1)
 
 local unused = cli:command('unused', 'find abstract classes with no users')
 
@@ -42,7 +43,7 @@ local action = {
 		output(oo.render(args.class), args.format)
 	end,
 	users = function (args)
-		output(oo.users(args.class), args.format)
+		output(oo.users(args.class, args.key), args.format)
 	end,
 	unused = function (args)
 		output(oo.unused(), args.format)
@@ -51,5 +52,9 @@ local action = {
 
 if args.command then
 	oo.crawlDir(args.dir)
-	action[args.command](args)
+	local status, err = pcall(action[args.command], args)
+	if err then
+		err = string.gsub(err, "^.+:[0-9]+: ", '')
+		print("error: " .. err)
+	end
 end

@@ -59,8 +59,8 @@ local function crawlDir(dir)
 	end
 end
 
-local function users(defName)
-	return registry:findUsers(defName)
+local function users(defName, keyToCheck)
+	return registry:findUsers(defName, keyToCheck)
 end
 
 local function traceClass(defName)

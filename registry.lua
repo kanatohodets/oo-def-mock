@@ -52,16 +52,23 @@ function Registry:type(name)
 	return 'unregistered'
 end
 
-function Registry:findUsers(baseClassName)
+function Registry:findUsers(baseClassName, keyToCheck)
 	local baseClass = self:get(baseClassName)
-	if not baseClass then return nil end
+	if not baseClass then error("no such class: " .. baseClassName) end
 
-	local ownKeys = baseClass:getOwnKeys()
+	local keysToCheck
+	if keyToCheck == nil then
+		keysToCheck = baseClass:getOwnKeys()
+	else
+		keysToCheck = {}
+		keysToCheck[keyToCheck] = baseClass:get(keyToCheck)
+	end
+
 	-- key = name of key, value = array of classes that source the value from this base class
 	local users = {}
 	for name, class in pairs(self.db.all) do
 		if class ~= baseClass then
-			for key, value in pairs(ownKeys) do
+			for key, value in pairs(keysToCheck) do
 				if class.changelog[key] then
 					if type(value) == 'table' then
 						local subUsers = self:findUsers(baseClassName .. ' ' .. key)
@@ -75,7 +82,7 @@ function Registry:findUsers(baseClassName)
 						if source == baseClass then
 							if not users[key] then
 								users[key] = {
-									value = ownKeys[key],
+									value = keysToCheck[key],
 									consumers = { class.name }
 								}
 							else
