@@ -1,7 +1,5 @@
 ## What?
 messing around with OO defs without constantly booting Spring
 
-## TODO
-- tag tracking must apply to all sub tables
-- write a tool to list consumers of tags from a given class, so refactoring
-	impact is obvious
+The goal is to have a tool to give some insight into the class hierarchy: find
+users of a given class, where a class's values come from, etc.
